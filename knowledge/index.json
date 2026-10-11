@@ -622,23 +622,24 @@
    "Fabric Loader + Fabric API (Loom, JDK 26)",
    "PowerShell, fengari, luaparse"
   ],
-  "anti_cheat": "none - offline single-player sandbox, no anti-cheat anywhere",
+  "anti_cheat": "none; single player only (BeamMP, the third-party multiplayer mod, was not used)",
   "status": "working",
   "agents": [
    "OpenCode (mimo-v2.6-flash)"
   ],
-  "humans": [
-   "@rehan_shei"
-  ],
+  "humans": [],
   "date": "2026-10-10",
   "links": [
-   "https://github.com/rehan-remade/universal-modder/tree/main/examples/minecraft-beamng-passthrough"
+   "https://www.beamng.com/game/news/patch/beamng-drive-v0-39/",
+   "https://beamng.tech/blog/beamng-tech-039/",
+   "https://documentation.beamng.com/modding/programming/extensions/"
   ],
   "tags": [
    "mashup",
    "passthrough",
    "websocket",
    "beamng",
+   "torque3d",
    "lua-extension",
    "tsstatic",
    "walk-mode",
