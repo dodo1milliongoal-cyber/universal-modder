@@ -8,16 +8,17 @@ platform: windows
 engine: unknown
 route: passthrough
 tools: ["BeamNG's own MCP server (-enablemcp)", "Fabric Loader + Fabric API (Loom, JDK 26)", "PowerShell, fengari, luaparse"]
-anti_cheat: none - offline single-player sandbox, no anti-cheat anywhere
+anti_cheat: none; single player only (BeamMP, the third-party multiplayer mod, was not used)
 status: working
 agents:
 - OpenCode (mimo-v2.6-flash)
-humans:
-- "@rehan_shei"
+humans: []
 date: '2026-10-10'
 links:
-- https://github.com/rehan-remade/universal-modder/tree/main/examples/minecraft-beamng-passthrough
-tags: [mashup, passthrough, websocket, beamng, lua-extension, tsstatic, walk-mode, camera-sync, fabric, mcp]
+- https://www.beamng.com/game/news/patch/beamng-drive-v0-39/
+- https://beamng.tech/blog/beamng-tech-039/
+- https://documentation.beamng.com/modding/programming/extensions/
+tags: [mashup, passthrough, websocket, beamng, torque3d, lua-extension, tsstatic, walk-mode, camera-sync, fabric, mcp]
 ---
 # Minecraft inside BeamNG.drive (passthrough mod: WebSocket bridge + rendered Steve)
 
@@ -26,8 +27,8 @@ tags: [mashup, passthrough, websocket, beamng, lua-extension, tsstatic, walk-mod
 > a pooled 7-box TSStatic rig anchored to walk mode, with correct proportions, camera-relative facing,
 > walk stride, a held item, hide-while-driving, and BeamNG's own snowman walk avatar hidden while he is
 > up. It runs in the real game - verified live through BeamNG's built-in MCP server (status probes plus
-> screenshots) and a 166-assertion headless Lua suite. Code: `examples/minecraft-beamng-passthrough`,
-> forked from `examples/minecraft-gta5-passthrough` (the Minecraft half is reused almost unchanged).
+> screenshots) and a 166-assertion headless Lua suite. The code, a fork of `examples/minecraft-gta5-passthrough`
+> whose Minecraft half is reused almost unchanged, isn't published yet.
 
 ## Setup
 - BeamNG.drive **0.39.4.0.20972 x64** from Steam, Windows 11, RX 580. No anti-cheat, no loaders to
@@ -36,20 +37,31 @@ tags: [mashup, passthrough, websocket, beamng, lua-extension, tsstatic, walk-mod
   (`mc/` module, `runClient` dev config; the mod jar also installs into a vanilla `mods` profile).
 - Tooling that actually ran: `npx luaparse` (syntax), `npx fengari-node-cli` (headless Lua test
   suite), PowerShell (`beamng/build.ps1` zips the mod), and **BeamNG's own MCP server** for all
-  live testing (launch flag `-enablemcp`).
+  live testing (launch flag `-enablemcp`; BeamNG.tech's 0.39 notes also give Options > Advanced >
+  Enable MCP server).
+- **Single player only.** BeamMP, the third-party multiplayer mod, is out of scope: remove or disable
+  the mod zip before joining a BeamMP server, and keep the MCP server off there.
 
 ## Route and why
 **Passthrough:** two real games side by side, one mod in each, talking over a local WebSocket
-(127.0.0.1:25600). Considered and rejected: frame compositing with a ReShade add-on (the GTA V
-route) - BeamNG 0.39's ReShade integration is blocked/unreliable, deferred entirely; and letting
-Minecraft own the pose (would mean teleporting the walk unicycle every tick against BeamNG's own
-physics). Decision: **BeamNG owns Steve's pose** (walk mode's anchor), Minecraft owns game logic
-and streams the camera/held item. The Minecraft half of the GTA V example needed only one new
-outbound message (held item); everything else carried over.
+(127.0.0.1:25600). BeamNG draws its own 7-box Steve from its own objects, so of the routes in
+`techniques/choosing-a-mashup-route.md` this is state exchange with a host-drawn stand-in (closest
+to native geometry transfer), not frame compositing.
+
+Considered and set aside:
+- frame compositing with a ReShade add-on (the GTA V route, `games/gta-v/minecraft-passthrough.md`),
+  deferred because the session judged ReShade on 0.39 unreliable (no test of it is recorded here);
+- letting Minecraft own the pose, which would mean teleporting the walk unicycle every tick against
+  BeamNG's own physics.
+
+Decision: **BeamNG owns Steve's pose** (walk mode's anchor), Minecraft owns game logic and streams
+the camera/held item (ownership as in `techniques/bridge-contracts-ownership-units-and-lifecycle.md`).
+The Minecraft half of the GTA V example needed only one new outbound message (held item); everything
+else carried over.
 
 ## How the game works (what we had to learn)
-All facts below were verified in the installed game's Lua (full citations with `file:line` in
-`examples/minecraft-beamng-passthrough/docs/BEAMNG_039_VERIFIED.md`).
+All facts below were read in the installed game's own Lua. The `file:line` references are to
+0.39.4.0.20972 and will move between versions.
 
 - **Mod loading:** a zip in `current\mods` mounts at the VFS root; `scripts/modScript.lua` runs and
   calls `extensions.load('mcpassthrough')`, which resolves `lua/ge/extensions/mcpassthrough.lua`
@@ -85,11 +97,15 @@ All facts below were verified in the installed game's Lua (full citations with `
   per-frame visibility lever.
 - **MCP test harness:** launching with `-enablemcp` loads `mcp_server`
   (`lua/ge/extensions/core/settings/settings.lua:265-272`), a Streamable-HTTP MCP endpoint at
-  `127.0.0.1:29292/mcp` (protocol 2024-11-05) with ready-made tools: `run_lua`, `load_level`,
+  `127.0.0.1:29292/mcp` with ready-made tools: `run_lua`, `load_level`,
   `get_vehicles`, `set_position`, `set_camera`/`set_free_camera`/`get_camera_state`, `toggle_ui`,
   `screenshot`, input injection, logs. This made the whole game scriptable for verification.
+  BeamNG.tech's 0.39 release notes give the same address and MCP protocol version 2025-11-25; the
+  session recorded 2024-11-05, possibly the version its client asked for.
 
 ## Build steps
+The code isn't published yet; these steps describe its layout (`mc/`, `beamng/`, `tests/`), which
+follows `examples/minecraft-gta5-passthrough`.
 1. Minecraft side: `cd mc; .\gradlew.bat runClient` (dev, JDK 26) or `build` and drop the jar into
    a Fabric profile's `mods/`. It listens on `ws://127.0.0.1:25600`.
 2. BeamNG side: `powershell -ExecutionPolicy Bypass -File beamng\build.ps1` builds
@@ -106,8 +122,8 @@ All facts below were verified in the installed game's Lua (full citations with `
 - **Oracle:** BeamNG's own MCP server. `extensions.mcpassthrough.status()` over `run_lua` exposed
   the whole session (walking, shown, anchor, yaw, speed, stride phase, held item, `fpHidden`,
   `avatarHidden`, `avatarProbe`, `hookErrors`); `screenshot` + `get_camera_state` gave visual
-  proof from commanded cameras. Screenshots cited in the example's docs (hero, mid-stride with the
-  held item, fp with the rig suppressed, an A/B pair proving the snowman hide).
+  proof from commanded cameras: a hero shot, mid-stride with the held item, first person with the
+  rig suppressed, and an A/B pair proving the snowman hide (not published).
 - **Unit suite:** 166 fengari assertions covering IPC state machine, pose/pivot math, stride
   contralateral swing, held-item visibility, avatar hide/restore, rig lifecycle.
 - **Checked live:** text WebSocket frames, `''` subprotocol, mod-zip load, raw-`.dae` compile +
@@ -121,7 +137,8 @@ All facts below were verified in the installed game's Lua (full citations with `
 
 ## Gotchas
 1. **Symptom:** BeamNG crashed instantly on launch with `-gfx d3d12`. **Cause:** D3D12 backend is
-   unstable on the RX 580 (driver). **Fix:** launch with `-gfx vk`; Vulkan ran stable for hours.
+   unstable on the RX 580 (driver). D3D12 is the default renderer on Windows since 0.39, so a plain
+   launch uses it too. **Fix:** launch with `-gfx vk`; Vulkan ran stable for hours.
 2. **Symptom:** entering walk mode right after `load_level` silently fails - seconds later the
    player is back in a car, `isWalking()` false. **Cause:** BeamNG's own late vehicle-ready logic
    switches the player vehicle ~10-40 s after load. **Fix:** wait 45-60 s after load before
@@ -184,7 +201,11 @@ evidence-grade screenshot set through the MCP harness.
 
 ## Open questions
 - Block rendering scale: the pooled-TSStatic budget beyond Steve's 7 boxes (Phase 6).
-- Full GTA-style frame compositing (colour + depth) needs a working ReShade add-on path in 0.39 -
-  deferred (Gotcha-free area is only world-space rendering).
+- Full GTA-style frame compositing (colour + depth) needs a working ReShade add-on path in 0.39;
+  no test of one is recorded. Only world-space rendering (pooled TSStatic objects) has been tested.
+- Gotcha 7: why our `onPreRender` write, which runs after the frame's `onUpdate`, still lost to
+  walk mode's `onUpdate` write isn't explained. BeamNG's extension docs say a hook runs in an
+  extension's dependencies first, so `M.dependencies = {"gameplay_walk"}` might order our hooks
+  after walk mode's (untested; the `hidden` field made it unnecessary).
 - Definitive gold-wall check of the MC-bound yaw sign; MC-side Steve facing comparison.
 - Phase-scope leftovers: Elytra, TNT reactions, block placement, richer inventory.
